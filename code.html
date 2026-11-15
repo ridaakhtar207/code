@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎯 Number Guesser Pro</title>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+  body {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; overflow-x: hidden;
+  }
+  .card {
+    background: white; width: 100%; max-width: 480px;
+    border-radius: 24px; padding: 32px 28px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    text-align: center; position: relative; overflow: hidden;
+  }
+  .card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 6px;
+    background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb, #1dd1a1);
+  }
+  h1 { font-size: 28px; margin-bottom: 6px; }
+  .subtitle { color: #666; font-size: 14px; margin-bottom: 20px; }
+
+  .stats {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 8px; margin-bottom: 20px;
+  }
+  .stat { background: #f8f9ff; border-radius: 12px; padding: 10px 4px; }
+  .stat b { display: block; font-size: 20px; color: #667eea; }
+  .stat span { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .difficulty { display: flex; gap: 8px; justify-content: center; margin-bottom: 18px; }
+  .difficulty button {
+    padding: 8px 16px; border: 2px solid #eee; background: white;
+    border-radius: 20px; cursor: pointer; font-weight: 600; transition: 0.2s;
+  }
+  .difficulty button.active { background: #667eea; color: white; border-color: #667eea; transform: scale(1.05); }
+
+  .range-label { font-size: 18px; font-weight: 700; color: #333; margin-bottom: 14px; }
+  .range-label span { color: #667eea; }
+
+  .input-row { display: flex; gap: 10px; }
+  input {
+    flex: 1; padding: 14px; font-size: 20px; font-weight: 700; text-align: center;
+    border: 2px solid #eee; border-radius: 12px; outline: none; transition: 0.2s;
+  }
+  input:focus { border-color: #667eea; box-shadow: 0 0 0 4px rgba(102,126,234,0.15); }
+  .guess-btn {
+    padding: 14px 22px; background: #667eea; color: white; border: none;
+    border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; transition: 0.2s;
+  }
+  .guess-btn:hover { background: #5a67d8; transform: translateY(-1px); }
+  .guess-btn:active { transform: scale(0.97); }
+
+  #message {
+    min-height: 52px; margin: 18px 0 10px; font-size: 17px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #message.win { color: #1dd1a1; animation: pop 0.5s ease; }
+  #message.lose { color: #ff6b6b; }
+  #message.hint { color: #f39c12; }
+
+  @keyframes pop { 0% { transform: scale(0.8); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
+  @keyframes shake { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-8px); } 40%,80% { transform: translateX(8px); } }
+  .shake { animation: shake 0.4s ease; }
+  @keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+  .bounce { animation: bounce 0.6s ease infinite; }
+
+  .history { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; min-height: 32px; }
+  .history span {
+    background: #eee; padding: 5px 10px; border-radius: 20px; font-size: 13px; font-weight: 600;
+    animation: pop 0.3s ease;
+  }
+  .history span.high { background: #ffe0e0; color: #e74c3c; }
+  .history span.low { background: #d6eaff; color: #2980b9; }
+
+  .actions { display: flex; gap: 10px; margin-top: 18px; }
+  .actions button {
+    flex: 1; padding: 11px; border-radius: 10px; cursor: pointer; font-weight: 600; border: none;
+  }
+  .play-again { background: #1dd1a1; color: white; }
+  .reset { background: #f1f2f6; color: #555; }
+
+  .temp { font-size: 13px; color: #999; margin-top: 8px; }
+
+  .confetti {
+    position: fixed; width: 10px; height: 10px; top: -10px; z-index: 999;
+    animation: fall 3s linear forwards; pointer-events: none;
+  }
+  @keyframes fall {
+    to { transform: translateY(105vh) rotate(720deg); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="card" id="card">
+  <h1>🎯 Number Guesser</h1>
+  <p class="subtitle">Can you read my mind? I'm thinking of a number...</p>
+
+  <div class="stats">
+    <div class="stat"><b id="score">100</b><span>Score</span></div>
+    <div class="stat"><b id="attempts">0</b><span>Attempts</span></div>
+    <div class="stat"><b id="streak">0</b><span>Streak</span></div>
+    <div class="stat"><b id="best">0</b><span>Best Score</span></div>
+  </div>
+
+  <div class="difficulty">
+    <button data-max="50">Easy 1-50</button>
+    <button data-max="100" class="active">Medium 1-100</button>
+    <button data-max="500">Hard 1-500</button>
+  </div>
+
+  <div class="range-label">Guess between <span id="rangeText">1 and 100</span></div>
+
+  <div class="input-row">
+    <input type="number" id="guessInput" placeholder="Enter your guess" autofocus>
+    <button class="guess-btn" id="guessBtn">Guess 🚀</button>
+  </div>
+
+  <div id="message">Good luck! 🍀</div>
+  <div class="temp" id="tempLabel"></div>
+
+  <div class="history" id="history"></div>
+
+  <div class="actions">
+    <button class="play-again" id="newGameBtn">🔄 New Game</button>
+    <button class="reset" id="resetScoreBtn">Reset Score</button>
+  </div>
+</div>
+
+<script>
+  let max = 100;
+  let secret = 0;
+  let attempts = 0;
+  let score = 100;
+  let streak = 0;
+  let best = parseInt(localStorage.getItem('guesserBest') || 0);
+  let lastDiff = Infinity;
+  let gameOver = false;
+
+  const guessInput = document.getElementById('guessInput');
+  const messageEl = document.getElementById('message');
+  const historyEl = document.getElementById('history');
+  const card = document.getElementById('card');
+
+  function updateUI() {
+    document.getElementById('score').textContent = score;
+    document.getElementById('attempts').textContent = attempts;
+    document.getElementById('streak').textContent = streak;
+    document.getElementById('best').textContent = best;
+    document.getElementById('rangeText').textContent = `1 and ${max}`;
+  }
+
+  function newGame() {
+    secret = Math.floor(Math.random() * max) + 1;
+    attempts = 0;
+    score = 100;
+    lastDiff = Infinity;
+    gameOver = false;
+    historyEl.innerHTML = '';
+    messageEl.textContent = 'Good luck! 🍀';
+    messageEl.className = '';
+    document.getElementById('tempLabel').textContent = '';
+    guessInput.value = '';
+    guessInput.disabled = false;
+    guessInput.focus();
+    updateUI();
+  }
+
+  function launchConfetti() {
+    const colors = ['#ff6b6b','#feca57','#48dbfb','#1dd1a1','#a55eea','#ff9ff3'];
+    for (let i = 0; i < 80; i++) {
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.left = Math.random() * 100 + 'vw';
+      c.style.background = colors[Math.floor(Math.random() * colors.length)];
+      c.style.animationDelay = (Math.random() * 0.5) + 's';
+      c.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), 3500);
+    }
+  }
+
+  function makeGuess() {
+    if (gameOver) return;
+    const guess = parseInt(guessInput.value);
+
+    if (isNaN(guess) || guess < 1 || guess > max) {
+      messageEl.textContent = `⚠️ Please enter a number between 1 and ${max}`;
+      messageEl.className = 'lose';
+      card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
+      return;
+    }
+
+    attempts++;
+    const diff = Math.abs(guess - secret);
+
+    // Add to history
+    const chip = document.createElement('span');
+    chip.textContent = guess;
+    chip.className = guess > secret ? 'high' : guess < secret ? 'low' : '';
+    historyEl.appendChild(chip);
+
+    if (guess === secret) {
+      gameOver = true;
+      streak++;
+      if (score > best) {
+        best = score;
+        localStorage.setItem('guesserBest', best);
+      }
+      messageEl.innerHTML = `🎉 Correct! It was ${secret} in ${attempts} tries! +${score} pts`;
+      messageEl.className = 'win bounce';
+      document.getElementById('tempLabel').textContent = 'You are a mind reader! 🧠';
+      launchConfetti();
+      guessInput.disabled = true;
+    } else {
+      score = Math.max(0, score - 10);
+      const isWarmer = diff < lastDiff;
+      lastDiff = diff;
+
+      let temp = '';
+      if (diff <= 3) temp = '🔥 BURNING HOT!';
+      else if (diff <= 10) temp = '🌡️ Very Warm';
+      else if (diff <= 25) temp = '☁️ Warm';
+      else temp = '🧊 Cold';
+
+      messageEl.textContent = guess > secret ? `📉 Too High! Try lower` : `📈 Too Low! Try higher`;
+      messageEl.className = 'hint';
+      document.getElementById('tempLabel').textContent = `${temp} • ${isWarmer && attempts > 1 ? '⬆️ Getting Warmer!' : attempts > 1 ? '⬇️ Getting Colder...' : ''}`;
+
+      card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
+    }
+
+    guessInput.value = '';
+    guessInput.focus();
+    updateUI();
+  }
+
+  // Events
+  document.getElementById('guessBtn').addEventListener('click', makeGuess);
+  guessInput.addEventListener('keydown', e => { if (e.key === 'Enter') makeGuess(); });
+  document.getElementById('newGameBtn').addEventListener('click', newGame);
+  document.getElementById('resetScoreBtn').addEventListener('click', () => {
+    best = 0; streak = 0; localStorage.removeItem('guesserBest');
+    newGame();
+  });
+
+  document.querySelectorAll('.difficulty button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.difficulty button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      max = parseInt(btn.dataset.max);
+      newGame();
+    });
+  });
+
+  // Start
+  updateUI();
+  newGame();
+</script>
+</body>
+</html>
